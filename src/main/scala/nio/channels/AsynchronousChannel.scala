@@ -91,9 +91,9 @@ class AsynchronousServerSocketChannel(private val channel: JAsynchronousServerSo
     )(_.close.orDie)
 
 
-    final val accept2: IO[Exception, AsynchronousSocketChannel] =
-      wrap[JAsynchronousSocketChannel](h => channel.accept((), h))
-        .map(AsynchronousSocketChannel(_))      
+  final val accept2: IO[Exception, AsynchronousSocketChannel] =
+    wrap[JAsynchronousSocketChannel](h => channel.accept((), h))
+      .map(AsynchronousSocketChannel(_))      
 
 
 

@@ -35,11 +35,12 @@ final class SSLEngine(val engine: JSSLEngine) {
 
   def getDelegatedTask() = effectBlocking {
     var task: Runnable = null
-    do {
+    
+    while({
       task = engine.getDelegatedTask()
       if (task != null) task.run()
-
-    } while (task != null)
+      task != null
+    })()
   }
 
   def getHandshakeStatus(): IO[Exception, SSLEngineResult.HandshakeStatus] =

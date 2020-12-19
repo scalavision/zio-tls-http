@@ -11,7 +11,11 @@ import zio.blocking._
 import zhttp.HttpRoutes.WebFilterProc
 import Method._
 
-import zio.json._
+import upickle.default.{ReadWriter => RW, macroRW }
+//import zio.json._
+// import argonaut._, Argonaut._
+// import scalaz.syntax.std.option._
+
 import zio.Chunk
 
 object param1 extends QueryParam("param1")
@@ -19,9 +23,12 @@ object param1 extends QueryParam("param1")
 
 object DataBlock {
 
-  implicit val decoder: JsonDecoder[DataBlock] = DeriveJsonDecoder.gen[DataBlock]
-  implicit val encoder: JsonEncoder[DataBlock] = DeriveJsonEncoder.gen[DataBlock]
+  implicit val rw: RW[DataBlock] = macroRW
+  // implicit val decoder: JsonDecoder[DataBlock] = DeriveJsonDecoder.gen[DataBlock]
+  // implicit val encoder: JsonEncoder[DataBlock] = DeriveJsonEncoder.gen[DataBlock]
 
+  // implicit def decoder(using dec: DecodeJson[DataBlock]): DecodeJson[DataBlock] = dec
+  // implicit def encoder(using enc: EncodeJson[DataBlock]): EncodeJson[DataBlock] = enc
 }
 
 case class DataBlock(val name: String, val address: String, val colors : Chunk[String] )
@@ -40,14 +47,14 @@ object myServer extends zio.App {
   val proc0 = WebFilterProc((_) => ZIO(Response.Error(StatusCode.NotImplemented)))
 
   val proc1 = WebFilterProc(
-    (_) => ZIO(Response.Ok.hdr("Injected-Header-Value" -> "1234").hdr("Injected-Header-Value" -> "more"))
+    (_) => ZIO(Response.Ok().hdr("Injected-Header-Value" -> "1234").hdr("Injected-Header-Value" -> "more"))
   )
 
   val proc2 = WebFilterProc(
     req =>
       ZIO {
         if (req.headers.getMval("Injected-Header-Value").exists(_ == "1234"))
-          Response.Ok.hdr("Injected-Header-Value" -> "CheckPassed")
+          Response.Ok().hdr("Injected-Header-Value" -> "CheckPassed")
         else Response.Error(StatusCode.Forbidden)
       }
   )
@@ -64,11 +71,11 @@ object myServer extends zio.App {
 
     //Web filter fires first, always returns not implemented
     val route_with_filter = HttpRoutes.ofWithFilter(proc0) {
-      case GET -> Root / "noavail" => ZIO(Response.Ok.asTextBody("OK "))
+      case GET -> Root / "noavail" => ZIO(Response.Ok().asTextBody("OK "))
     }
 
     
-    val ws_route2 = HttpRoutes.of { req: Request =>
+    val ws_route2 = HttpRoutes.of { (req: Request) =>
     {
        req match {
          case GET -> Root / "websocket" =>
@@ -90,7 +97,7 @@ object myServer extends zio.App {
    
     //example of static document server
     //Raw Route with packet reads, without fetching content into memory
-    val document_server = HttpRoutes.of { req: Request =>
+    val document_server = HttpRoutes.of { (req: Request) =>
       {
         req match {
           case GET -> Root =>
@@ -131,30 +138,30 @@ object myServer extends zio.App {
       req match {
         case GET -> Root / "print" =>
           MyLogging.trace( "console", "Hello from app")  *>
-          ZIO(Response.Ok.asTextBody(req.headers.printHeaders))
-        case GET -> Root / "Ok" => ZIO( Response.Ok )  
+          ZIO(Response.Ok().asTextBody(req.headers.printHeaders))
+        case GET -> Root / "Ok" => ZIO( Response.Ok() )  
       }
     }
 
     val app_route_JSON = HttpRoutes.ofWithFilter(proc1) { 
 
        case GET -> Root / "test2" =>
-         ZIO(Response.Ok.asTextBody( "Health Check" ) )
+         ZIO(Response.Ok().asTextBody( "Health Check" ) )
 
         
        case GET -> Root / "test" =>
-         ZIO(Response.Ok.asJsonBody( DataBlock("Thomas", "1001 Dublin Blvd", Chunk( "red", "blue", "green" ) ) ) )
+         ZIO(Response.Ok().asJsonBody( DataBlock("Thomas", "1001 Dublin Blvd", Chunk( "red", "blue", "green" ) ) ) )
                                                 
        case req @ POST -> Root / "test" =>
          ZIO.effect { //need to wrap up everything in the effect to have proper error handling
            val db : DataBlock = req.fromJSON[DataBlock]
            val name = db.name
-           Response.Ok.asTextBody( s"JSON for $name accepted" )     
+           Response.Ok().asTextBody( s"JSON for $name accepted" )     
          }                                  
       }   
     
 
-    val app_route_cookies_and_params = HttpRoutes.of { req: Request =>
+    val app_route_cookies_and_params = HttpRoutes.of { (req: Request) =>
       {
         req match {
 
@@ -167,7 +174,7 @@ object myServer extends zio.App {
               Cookie("testCookie3", "1A8BD0FC645E0", secure = false, expires = Some(ZonedDateTime.now.plusHours(5)))
 
             ZIO(
-              Response.Ok
+              Response.Ok()
                 .hdr(headers)
                 .cookie(c1)
                 .cookie(c2)
@@ -185,7 +192,7 @@ object myServer extends zio.App {
               infile.write(req.body.toArray)
 
               infile.close()
-            } *> ZIO(Response.Ok)
+            } *> ZIO(Response.Ok())
 
         }
       }

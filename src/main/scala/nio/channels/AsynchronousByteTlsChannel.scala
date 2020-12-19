@@ -128,12 +128,11 @@ class AsynchronousTlsByteChannel(private val channel: AsynchronousSocketChannel,
   def remoteAddress: ZIO[ZEnv, Exception, Option[SocketAddress]] = channel.remoteAddress
 
 
-  def readBuffer( out_b : java.nio.ByteBuffer ) : ZIO[ZEnv, Exception, Unit] = 
-  {
+  def readBuffer( out_b : java.nio.ByteBuffer ) : ZIO[ZEnv, Exception, Unit] = {
 
-     val out = Buffer.byte( out_b )
+    val out = Buffer.byte( out_b )
 
-     val result = for {
+    val result = for {
 
       in  <- IO.effectTotal(new nio.ByteBuffer(IN_J_BUFFER)) //reuse carryover buffer from previous read(), buffer was compacted with compact(), only non-processed data left
 

@@ -36,43 +36,39 @@ object MyLogging {
   class LogRec(logName: String, var log: FileChannel, val lvl: LogLevel)
   {  
 
-     private def critical_error_message( log_msg : String, lvl : LogLevel )
-     {
+    private def critical_error_message( log_msg : String, lvl : LogLevel ) = {
         val TS           = withColor(AnsiColor.GREEN, 
                            LogDatetimeFormatter.humanReadableDateTimeFormatter.format( java.time.OffsetDateTime.now() ) )
         val MSG          = withColor(AnsiColor.YELLOW, log_msg)
         val LVL          = withColor( colorFromLogLevel( lvl ), lvl.render )
         val console_line = s"$TS [$LVL] $MSG"
         println(console_line)
-     }
+    }
 
-     private def removeOldLogs = 
-     {
+    private def removeOldLogs = {
         val dir =  FileSystems.getDefault().getPath( REL_LOG_FOLDER )
 
          Files.list( dir ).filter( c => !c.endsWith( logName + ".log" ))
                           .filter( c => c.getName(1).toString.startsWith( logName )  )
                           .sorted( java.util.Comparator.reverseOrder() ).skip( MAX_NUMBER_ROTATED_LOGS ).forEach( c => c.toFile.delete )
 
-     }
+    }
 
-     private def reOpenLogFile = 
-     {
+    private def reOpenLogFile = {
         log = FileChannel.open( FileSystems.getDefault().getPath( REL_LOG_FOLDER, logName + ".log" ),  
                                                                       java.nio.file.StandardOpenOption.CREATE,
                                                                       java.nio.file.StandardOpenOption.APPEND,
                                                                       java.nio.file.StandardOpenOption.SYNC )
-     }
+    }
 
 
-     private def archiveLogFile = 
-     {       
+    private def archiveLogFile = {       
          val srcFile = FileSystems.getDefault().getPath( REL_LOG_FOLDER, logName + ".log" ).toFile()
          val archFile = FileSystems.getDefault().getPath( REL_LOG_FOLDER, logName + "." + LocalDateTime.now().format(  FILE_TS_FMT  ) + ".log" ).toFile()
          srcFile.renameTo( archFile )
-     }
+    }
 
-     def write_rotate( line : String ) = {
+    def write_rotate( line : String ) = {
      try {  
          log.write( ByteBuffer.wrap( line.getBytes() ) )
          if ( log.size() >  MAX_LOG_FILE_SIZE  ) {
@@ -85,7 +81,7 @@ object MyLogging {
         case e : Exception => println( critical_error_message( "CRITICAL: CAN NOT WRITE LOGS " + e.toString, LogLevel.Error ) )
       }
 
-     }
+    }
   }
 
   private def withColor(color: String, s: String): String = s"$color$s$RESET"
@@ -109,11 +105,9 @@ object MyLogging {
   def log(name: String, lvl: LogLevel, msg: String): ZIO[ ZEnv with MyLogging, Exception, Unit] =
     ZIO.accessM[ZEnv with MyLogging](logenv => logenv.asInstanceOf[MyLogging].get.log(name, lvl, msg ) ) 
 
- def logService: ZIO[ ZEnv with MyLogging, Exception, MyLogging.Service] =
- {
+  def logService: ZIO[ ZEnv with MyLogging, Exception, MyLogging.Service] = {
       ZIO.access[ZEnv with MyLogging]( logenv => logenv.asInstanceOf[MyLogging].get )
- }   
- 
+  }   
 
   def info(name: String, msg: String): ZIO[ZEnv with MyLogging, Exception, Unit] =
     log(name, LogLevel.Info, msg)

@@ -2,8 +2,9 @@ package zhttp
 
 import zio.Chunk
 import java.net.URI
-import zio.json._
+// import zio.json._
 
+import upickle.default.{ReadWriter => RW, macroRW}
 
 sealed case class Request(headers: Headers, body: Chunk[Byte], ch: Channel) {
   def path: String             = headers.get( HttpRouter._PATH ).getOrElse("")
@@ -15,8 +16,8 @@ sealed case class Request(headers: Headers, body: Chunk[Byte], ch: Channel) {
   def isWebSocket: Boolean     = headers.get("Upgrade").map( _.equalsIgnoreCase( "websocket") )
                                 .collect{ case true => true }.getOrElse( false )
 
-  def fromJSON[A : JsonDecoder] : A = {
-     new String(body.toArray).fromJson[A] match {
+  def fromJSON[A : RW] : A = {
+     new String(body.toArray).read[A] match {
        case Right(v) => v
        case Left(v)  => throw new MediaEncodingError( s"JSON schema error: $v" )
      }
@@ -54,8 +55,8 @@ sealed case class Response(code: StatusCode, headers: Headers, body: Option[Chun
      new Response(this.code, this.headers, Some( Chunk.fromArray(body0.getBytes ) ) ).contentType( ContentType.Plain )
   }   
 
-  def asJsonBody[B : JsonEncoder]( body0 : B ) : Response = { 
-      val json = body0.toJson.getBytes
+  def asJsonBody[B : RW]( body0 : B ) : Response = { 
+      val json = write(body0).getBytes
       new Response(this.code, this.headers, Some( Chunk.fromArray( json ))).contentType( ContentType.JSON) 
   }    
 
